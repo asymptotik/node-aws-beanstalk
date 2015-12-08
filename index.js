@@ -99,7 +99,7 @@ exports.deploy = function(codePackage, config, callback, logger, beanstalk, S3) 
 	var updateEnvironment = function(callback) {
 		logger('Updating environment "' + params.EnvironmentName + '"...');
 		beanstalk.updateEnvironment(
-			pick(params, ['EnvironmentName', 'Description', 'OptionSettings', 'SolutionStackName', 'TemplateName', 'VersionLabel', 'Tier']),
+			pick(params, ['EnvironmentName', 'Description', 'OptionSettings', 'SolutionStackName', 'TemplateName', 'VersionLabel']),
 			function(err, data) {
 				if (err) {
 					logger('Create environment failed. Check your iam:PassRole permissions.');
