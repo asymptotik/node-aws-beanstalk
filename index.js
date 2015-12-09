@@ -179,9 +179,9 @@ var optionallyCreateApplication = function() {
 var uploadCode = function() {
 	return Q.Promise(function(resolve, reject, notify) {
 		logger('Uploading code to S3 bucket "' + params.SourceBundle.S3Bucket + '"...');
-		fs.readFile(params.package, function(err, data) {
+		fs.readFile(params.CodePackage, function(err, data) {
 			if (err) {
-				reject(new Error('Error reading specified package "' + codePackage + '"'));
+				reject(new Error('Error reading specified package "' + params.CodePackage + '"'));
 				return;
 			}
 			S3.upload({
@@ -192,7 +192,7 @@ var uploadCode = function() {
 				},
 				function(err, data) {
 					if (err) {
-						logger('Upload of "' + codePackage + '" to S3 bucket failed.');
+						logger('Upload of "' + params.CodePackage + '" to S3 bucket failed.');
 						reject(new Error(err));
 					} else {
 						resolve(data);
@@ -275,8 +275,9 @@ exports.init = function(config) {
 	}
 
 	config.version = config.version !== undefined ? config.version : '1.0.0';
-	var packageName = codePackage.split('/'),
+	var packageName = config.codePackage.split('/'),
 	params = {
+		CodePackage: config.codePackage,
 		ApplicationName: config.appName,
 		EnvironmentName: config.envName,
 		Description: config.description,
@@ -296,7 +297,7 @@ exports.init = function(config) {
 		Tags: config.environmentTags,
 		OptionSettings: config.environmentSettings
 	};
-	
+
 	return exports;
 };
 
