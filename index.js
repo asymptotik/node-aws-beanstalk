@@ -41,171 +41,215 @@ var getBeanstalk = function(config) {
 	return ret;
 };
 
-var createEnvironment = function(callback) {
+var createEnvironment = function() {
 
-	if (!params.SolutionStackName && !params.TemplateName) {
-		return callback('Missing either "solutionStack" or "template" config');
-	}
-	if (params.SolutionStackName && params.TemplateName) {
-		return callback('Provided both "solutionStack" and "template" config; only one or the other supported');
-	}
-
-	logger('Creating environment "' + params.EnvironmentName + '"...');
-	beanstalk.createEnvironment(
-		pick(params, ['ApplicationName', 'EnvironmentName', 'Description', 'OptionSettings', 'SolutionStackName', 'TemplateName', 'VersionLabel', 'Tier', 'Tags']),
-		function(err, data) {
-			if (err) {
-				logger('Create environment failed. Check your iam:PassRole permissions.');
-				callback(err);
-			} else {
-				logger('Environment "' + params.EnvironmentName + '" created and is now being launched.');
-				callback();
-			}
+	return Q.Promise(function(resolve, reject, notify) {
+		if (!params.SolutionStackName && !params.TemplateName) {
+			reject(new Error('Missing either "solutionStack" or "template" config'));
 		}
-	);
-};
-
-var updateEnvironment = function(callback) {
-
-	if (!params.SolutionStackName && !params.TemplateName) {
-		return callback('Missing either "solutionStack" or "template" config');
-	}
-	if (params.SolutionStackName && params.TemplateName) {
-		return callback('Provided both "solutionStack" and "template" config; only one or the other supported');
-	}
-
-	logger('Updating environment "' + params.EnvironmentName + '"...');
-	beanstalk.updateEnvironment(
-		pick(params, ['EnvironmentName', 'Description', 'OptionSettings', 'SolutionStackName', 'TemplateName', 'VersionLabel']),
-		function(err, data) {
-			if (err) {
-				logger('Create environment failed. Check your iam:PassRole permissions.');
-				callback(err);
-			} else {
-				logger('Environment "' + params.EnvironmentName + '" updated and is now being launched.');
-				callback();
-			}
+		if (params.SolutionStackName && params.TemplateName) {
+			reject(new Error('Provided both "solutionStack" and "template" config; only one or the other supported'));
 		}
-	);
-};
 
-var createOrUpdateEnvironment = function(callback) {
-	logger('Checking for environment "' + params.EnvironmentName + '"...');
-	beanstalk.describeEnvironments({
-			ApplicationName: params.ApplicationName,
-			EnvironmentNames: [params.EnvironmentName]
-		},
-		function(err, data) {
-			if (err) {
-				logger('beanstalk.describeApplication request failed. Check your AWS credentials and permissions.');
-				callback(err);
-			} else {
-				if (data.Environments && data.Environments.length > 0) {
-					if (data.Environments[0].Status !== 'Ready') {
-						logger('Environment is currently not in "Ready" status (currently "' + data.Environments[0].Status + '"). Please resolve/wait and try again.');
-						callback();
-					} else {
-						updateEnvironment(callback);
-					}
-				} else {
-					createEnvironment(callback);
-				}
-			}
-		}
-	);
-};
-
-var createApplication = function(callback) {
-	logger('Creating application "' + params.ApplicationName + '" version "' + params.VersionLabel + '"...');
-	beanstalk.createApplicationVersion(
-		pick(params, ['ApplicationName', 'Description', 'AutoCreateApplication', 'VersionLabel', 'SourceBundle']),
-		function(err, data) {
-			if (err) {
-				logger('Create application version failed. Check your iam:PassRole permissions.');
-				callback(err);
-			} else {
-				describeEnvironment(callback);
-			}
-		});
-};
-
-var optionallyCreateApplication = function(callback) {
-	logger('Checking for application "' + params.ApplicationName + '" version "' + params.VersionLabel + '"...');
-	beanstalk.describeApplicationVersions({
-			ApplicationName: params.ApplicationName,
-			VersionLabels: [params.VersionLabel]
-		},
-		function(err, data) {
-			if (err) {
-				logger('beanstalk.describeApplication request failed. Check your AWS credentials and permissions.');
-				callback(err);
-			} else {
-				if (!data.ApplicationVersions || data.ApplicationVersions.length == 0) {
-					createApplication(callback);
-				}
-			}
-		}
-	);
-};
-
-var uploadCode = function(callback) {
-	logger('Uploading code to S3 bucket "' + params.SourceBundle.S3Bucket + '"...');
-	fs.readFile(codePackage, function(err, data) {
-		if (err) {
-			return callback('Error reading specified package "' + codePackage + '"');
-		}
-		S3.upload({
-				Bucket: params.SourceBundle.S3Bucket,
-				Key: params.SourceBundle.S3Key,
-				Body: data,
-				ContentType: 'binary/octet-stream'
-			},
+		logger('Creating environment "' + params.EnvironmentName + '"...');
+		beanstalk.createEnvironment(
+			pick(params, ['ApplicationName', 'EnvironmentName', 'Description', 'OptionSettings', 'SolutionStackName', 'TemplateName', 'VersionLabel', 'Tier', 'Tags']),
 			function(err, data) {
 				if (err) {
-					logger('Upload of "' + codePackage + '" to S3 bucket failed.');
-					callback(err);
+					logger('Create environment failed. Check your iam:PassRole permissions.');
+					reject(new Error(err));
 				} else {
-					callback();
+					logger('Environment "' + params.EnvironmentName + '" created and is now being launched.');
+					resolve(data);
 				}
 			}
 		);
 	});
 };
 
-var createBucket = function(callback) {
-	logger('Creating S3 bucket "' + params.SourceBundle.S3Bucket + '"...');
-	S3.createBucket({
-			Bucket: params.SourceBundle.S3Bucket
-		},
-		function(err, data) {
-			if (err) {
-				logger('Create S3 bucket "' + params.Bucket + '" failed.');
-				callback(err);
-			} else {
-				callback();
-			}
+var updateEnvironment = function() {
+
+	return Q.Promise(function(resolve, reject, notify) {
+		if (!params.SolutionStackName && !params.TemplateName) {
+			reject(new Error('Missing either "solutionStack" or "template" config'));
 		}
-	);
+		if (params.SolutionStackName && params.TemplateName) {
+			reject(new Error('Provided both "solutionStack" and "template" config; only one or the other supported'));
+		}
+
+		logger('Updating environment "' + params.EnvironmentName + '"...');
+		beanstalk.updateEnvironment(
+			pick(params, ['EnvironmentName', 'Description', 'OptionSettings', 'SolutionStackName', 'TemplateName', 'VersionLabel']),
+			function(err, data) {
+				if (err) {
+					logger('Create environment failed. Check your iam:PassRole permissions.');
+					reject(new Error(err));
+				} else {
+					logger('Environment "' + params.EnvironmentName + '" updated and is now being launched.');
+					resolve(data);
+				}
+			}
+		);
+	});
 };
 
-var checkBucket = function(callback) {
-	logger('Checking for S3 bucket "' + params.SourceBundle.S3Bucket + '"...');
-	S3.headBucket({
-			Bucket: params.SourceBundle.S3Bucket
-		},
-		function(err, data) {
-			if (err) {
-				if (err.statusCode === 404) {
-					createBucket(callback);
+var describeEnvironments = function() {
+
+	return Q.Promise(function(resolve, reject, notify) {
+		logger('Checking for environment "' + params.EnvironmentName + '"...');
+		beanstalk.describeEnvironments({
+				ApplicationName: params.ApplicationName,
+				EnvironmentNames: [params.EnvironmentName]
+			},
+			function(err, data) {
+				if (err) {
+					logger('beanstalk.describeApplication request failed. Check your AWS credentials and permissions.');
+					reject(new Error(err));
 				} else {
-					logger('S3.headBucket request failed. Check your AWS credentials and permissions.');
-					callback(err);
+					resolve(data);
 				}
-			} else {
-				callback();
 			}
+		);
+	});
+}
+
+var createOrUpdateEnvironment = function() {
+	return describeEnvironments.then(function(data) {
+		if (data.Environments && data.Environments.length > 0) {
+			if (data.Environments[0].Status !== 'Ready') {
+				logger('Environment is currently not in "Ready" status (currently "' + data.Environments[0].Status + '"). Please resolve/wait and try again.');
+				throw new Error('Environment is currently not in "Ready" status (currently "' + data.Environments[0].Status + '"). Please resolve/wait and try again.');
+			} else {
+				return updateEnvironment();
+			}
+		} else {
+			return createEnvironment();
 		}
-	);
+	});
+};
+
+var createApplication = function() {
+
+	return Q.Promise(function(resolve, reject, notify) {
+		logger('Creating application "' + params.ApplicationName + '" version "' + params.VersionLabel + '"...');
+		beanstalk.createApplicationVersion(
+			pick(params, ['ApplicationName', 'Description', 'AutoCreateApplication', 'VersionLabel', 'SourceBundle']),
+			function(err, data) {
+				if (err) {
+					logger('Create application version failed. Check your iam:PassRole permissions.');
+					reject(new Error(err));
+				} else {
+					resolve(data);
+				}
+			});
+	});
+};
+
+var describeApplicationVersions = function() {
+
+	return Q.Promise(function(resolve, reject, notify) {
+		logger('Checking for application "' + params.ApplicationName + '" version "' + params.VersionLabel + '"...');
+		beanstalk.describeApplicationVersions({
+				ApplicationName: params.ApplicationName,
+				VersionLabels: [params.VersionLabel]
+			},
+			function(err, data) {
+				if (err) {
+					logger('beanstalk.describeApplication request failed. Check your AWS credentials and permissions.');
+					reject(new Error(err));
+				} else {
+					resolve(data);
+				}
+			}
+		);
+	});
+};
+
+var optionallyCreateApplication = function() {
+
+	return describeApplicationVersions.then(function(data) {
+		if (data.ApplicationVersions && data.ApplicationVersions.length > 0) {
+			return updateEnvironment();
+		} else {
+			throw new Error('beanstalk.describeApplication request failed. Check your AWS credentials and permissions.');
+		}
+	});
+};
+
+var uploadCode = function() {
+	return Q.Promise(function(resolve, reject, notify) {
+		logger('Uploading code to S3 bucket "' + params.SourceBundle.S3Bucket + '"...');
+		fs.readFile(params.package, function(err, data) {
+			if (err) {
+				reject(new Error('Error reading specified package "' + codePackage + '"'));
+				return;
+			}
+			S3.upload({
+					Bucket: params.SourceBundle.S3Bucket,
+					Key: params.SourceBundle.S3Key,
+					Body: data,
+					ContentType: 'binary/octet-stream'
+				},
+				function(err, data) {
+					if (err) {
+						logger('Upload of "' + codePackage + '" to S3 bucket failed.');
+						reject(new Error(err));
+					} else {
+						resolve(data);
+					}
+				}
+			);
+		});
+	});
+};
+
+var createBucket = function() {
+	return Q.Promise(function(resolve, reject, notify) {
+		logger('Creating S3 bucket "' + params.SourceBundle.S3Bucket + '"...');
+		S3.createBucket({
+				Bucket: params.SourceBundle.S3Bucket
+			},
+			function(err, data) {
+				if (err) {
+					logger('Create S3 bucket "' + params.Bucket + '" failed.');
+					reject(new Error(err));
+				} else {
+					resolve(data);
+				}
+			}
+		);
+	});
+};
+
+var headBucket = function() {
+	return Q.Promise(function(resolve, reject, notify) {
+		logger('Checking for S3 bucket "' + params.SourceBundle.S3Bucket + '"...');
+		S3.headBucket({
+				Bucket: params.SourceBundle.S3Bucket
+			},
+			function(err, data) {
+				if (err) {
+					if (err.statusCode === 404) {
+						resolve();
+					} else {
+						logger('S3.headBucket request failed. Check your AWS credentials and permissions.');
+						reject(new Error(err));
+					}
+				} else {
+					resolve(data);
+				}
+			}
+		);
+	});
+};
+
+var checkBucket = function() {
+
+	return headBucket.then(function(data) {
+		if (!data) {
+			return createBucket();
+		}
+	});
 };
 
 exports.init = function(config) {
@@ -251,17 +295,11 @@ exports.init = function(config) {
 		},
 		Tags: config.environmentTags,
 		OptionSettings: config.environmentSettings
-	};	
+	};
+	
+	return exports;
 };
 
 exports.deploy = function(callback) {
-
-	checkBucket(function(err) {
-		uploadCode(function(err) {
-			optionallyCreateApplication(function(err) {
-				createOrUpdateEnvironment(function(err) {
-				});
-			});
-		});
-	});
+	return checkBucket().then(uploadCode).then(optionallyCreateApplication).then(createOrUpdateEnvironment);
 };
