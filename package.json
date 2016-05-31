@@ -11,14 +11,14 @@
     "beanstalk",
     "deploy"
   ],
-  "author": "David Hutchings",
+  "author": "Rick Boykin",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/dlhdesign/node-aws-beanstalk/issues"
+    "url": "https://github.com/asymptotik/node-aws-beanstalk/issues"
   },
   "dependencies": {
     "aws-sdk": "2.x.x",
     "https-proxy-agent": "^1.0.0",
-    "Q": "^2.0.0"
+    "q": "^1.4.1"
   }
 }
