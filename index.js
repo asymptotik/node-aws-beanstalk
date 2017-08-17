@@ -126,8 +126,10 @@ var createOrUpdateEnvironment = function() {
 			} else {
 				return updateEnvironment();
 			}
-		} else {
+		} else if(conf.createEnv) {
 			return createEnvironment();
+		} else {
+				throw new Error('Environment does not exist: ' + params.ApplicationName + ': ' + params.EnvironmentName + '. Add createEnv: true to config to automatically create the environment.');
 		}
 	});
 };
@@ -181,26 +183,30 @@ var optionallyCreateApplication = function() {
 var uploadCode = function() {
 	return Q.Promise(function(resolve, reject, notify) {
 		logger('Uploading code to S3 bucket "' + params.SourceBundle.S3Bucket + '"...');
-		fs.readFile(conf.codePackage, function(err, data) {
-			if (err) {
-				reject(new Error('Error reading specified package "' + conf.codePackage + '"'));
-				return;
-			}
-			getS3().upload({
-					Bucket: params.SourceBundle.S3Bucket,
-					Key: params.SourceBundle.S3Key,
-					Body: data,
-					ContentType: 'binary/octet-stream'
-				},
-				function(err, data) {
-					if (err) {
-						logger('Upload of "' + conf.codePackage + '" to S3 bucket failed.');
-						reject(new Error(err));
-					} else {
-						resolve(data);
-					}
+		const stats = fs.statSync(conf.codePackage);
+		let total = 0;
+
+		var stream = fs.createReadStream(conf.codePackage)
+		.on('error', (error) => {reject(new Error('Error reading specified package "' + conf.codePackage + '"'));});
+
+		var upload = getS3().upload({
+				Bucket: params.SourceBundle.S3Bucket,
+				Key: params.SourceBundle.S3Key,
+				Body: stream,
+				ContentType: 'binary/octet-stream'
+			},
+			function(err, data) {
+				if (err) {
+					logger('Upload of "' + conf.codePackage + '" to S3 bucket failed.');
+					reject(new Error(err));
+				} else {
+					logger('Uploaded "' + conf.codePackage + '" to S3 bucket "' + data.Bucket + '/' + data.Key + '"');
+					resolve(data);
 				}
-			);
+			}
+		);
+		upload.on('httpUploadProgress', function(evt) {
+			logger('uploaded: %d', evt.loaded*100/evt.total);
 		});
 	});
 };
@@ -258,7 +264,13 @@ var checkBucket = function() {
 	});
 };
 
+var defaultConfig = {
+	createEnv: false
+};
+
 var init = function(config) {
+	config = Object.assign({}, defaultConfig, config);
+
 	if (!config.logger) {
 		config.logger = console.log;
 	}
